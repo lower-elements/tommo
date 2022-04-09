@@ -6,27 +6,11 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
+    #[serde(default)]
     pub limits: LimitsConfig,
+    #[serde(default)]
     pub logging: LoggingConfig,
     pub network: NetworkConfig,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct LimitsConfig {
-    pub max_in_flight_msgs: usize,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct LoggingConfig {
-    pub filter: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct NetworkConfig {
-    pub bind_address: SocketAddr,
 }
 
 impl Config {
@@ -39,4 +23,38 @@ impl Config {
             .wrap_err_with(|| format!("Could not parse config file at {}", path.display()))?;
         Ok(cfg)
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct LimitsConfig {
+    pub max_in_flight_msgs: usize,
+}
+
+impl Default for LimitsConfig {
+    fn default() -> Self {
+        Self {
+            max_in_flight_msgs: 1024
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct LoggingConfig {
+    pub filter: String,
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            filter: String::from("info"),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct NetworkConfig {
+    pub bind_address: SocketAddr,
 }
