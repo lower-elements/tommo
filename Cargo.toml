@@ -10,4 +10,5 @@ edition = "2021"
 lto = "thin"
 
 [dependencies]
+eyre = "0.6.8"
 tokio = { version = "1.17.0", features = ["full"] }
