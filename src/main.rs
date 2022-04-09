@@ -1,9 +1,9 @@
 mod logging;
-
-use std::net::SocketAddr;
+mod state;
+use state::State;
 
 use eyre::WrapErr;
-use tokio::{io::AsyncWriteExt, net::{TcpListener, TcpStream}};
+use tokio::net::TcpListener;
 
 const BIND_ADDR: &str = "0.0.0.0:7878";
 
@@ -11,21 +11,16 @@ const BIND_ADDR: &str = "0.0.0.0:7878";
 async fn main() -> eyre::Result<()> {
     logging::init();
 
+    let state = State::new();
+
     let listener = TcpListener::bind(BIND_ADDR).await.wrap_err_with(|| format!("Could not bind to address: {}", BIND_ADDR))?;
     tracing::info!(addr = BIND_ADDR, "Now listening");
     loop {
         match listener.accept().await.wrap_err("Could not accept connection") {
             Ok((conn, addr)) => {
-                tokio::spawn(handle_connection(conn, addr));
+                tokio::spawn(state.new_connection(conn, addr));
             },
             Err(e) => tracing::error!(error = ?e, "Failed to accept connection"),
         }
     }
-}
-
-#[tracing::instrument(name = "connection", skip(conn))]
-async fn handle_connection(mut conn: TcpStream, addr: SocketAddr) {
-    tracing::info!( "Client connected");
-    conn.write_all(b"Hello, world!\n").await.unwrap();
-    conn.flush().await.unwrap();
 }
