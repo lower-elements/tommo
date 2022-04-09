@@ -1,0 +1,12 @@
+[package]
+name = "tommo"
+version = "0.1.0"
+authors = ["Michael Connor Buchan <mikey@blindcomputing.org>"]
+description = "Text-Only, Massively Multiplayer Online engine"
+edition = "2021"
+
+[profile.release]
+lto = "thin"
+
+[dependencies]
+tokio = { version = "1.17.0", features = ["full"] }
