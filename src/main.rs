@@ -27,8 +27,9 @@ async fn main() -> eyre::Result<()> {
                 // Create a new client-handler
                 let handler = state.new_connection(conn, addr);
                 tokio::spawn(async move {
-                    if let Err(e) = handler.await {
-                        tracing::warn!(error = ?e, addr = %addr, "Client error");
+                    match handler.await {
+                        Ok(_) => tracing::info!(%addr, "Client disconnected"),
+                        Err(e) => tracing::warn!(error = ?e, addr = %addr, "Client error"),
                     }
                 });
             }
