@@ -1,3 +1,4 @@
+mod config;
 mod logging;
 mod state;
 use state::State;
@@ -11,9 +12,9 @@ const BIND_ADDR: &str = "0.0.0.0:7878";
 async fn main() -> eyre::Result<()> {
     logging::init();
 
-    let state = State::new();
+    let state = State::new().await?;
 
-    let listener = TcpListener::bind(BIND_ADDR)
+    let listener = TcpListener::bind(state.config().network.bind_address)
         .await
         .wrap_err_with(|| format!("Could not bind to address: {}", BIND_ADDR))?;
     tracing::info!(addr = BIND_ADDR, "Now listening");

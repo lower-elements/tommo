@@ -9,21 +9,29 @@ use tokio::{
     sync::broadcast::{self, error::RecvError},
 };
 
-const MAX_IN_FLIGHT_MSGS: usize = 1024;
+use crate::config::Config;
 
 pub struct State {
+    config: Config,
     global_tx: broadcast::Sender<String>,
     #[allow(dead_code)]
     global_rx: broadcast::Receiver<String>,
 }
 
 impl State {
-    pub fn new() -> Self {
-        let (global_tx, global_rx) = broadcast::channel(MAX_IN_FLIGHT_MSGS);
-        Self {
+    pub async fn new() -> eyre::Result<Self> {
+        let config = Config::from_file("config.toml").await?;
+        let (global_tx, global_rx) = broadcast::channel(config.limits.max_in_flight_msgs);
+        Ok(Self {
+            config,
             global_tx,
             global_rx,
-        }
+        })
+    }
+
+    #[inline]
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     #[tracing::instrument(name = "connection", skip(self, conn))]

@@ -1,0 +1,5 @@
+[network]
+bind-address = "0.0.0.0:7878"
+
+[limits]
+max-in-flight-msgs = 1024
