@@ -10,9 +10,8 @@ const BIND_ADDR: &str = "0.0.0.0:7878";
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    logging::init();
-
     let state = State::new().await?;
+    logging::init(&state.config().logging.filter);
 
     let listener = TcpListener::bind(state.config().network.bind_address)
         .await

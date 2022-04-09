@@ -1,11 +1,12 @@
 //!Logging with the [`tracing`] crate.
 
 use tracing_error::ErrorLayer;
-use tracing_subscriber::{fmt, prelude::*};
+use tracing_subscriber::{filter::EnvFilter, fmt, prelude::*};
 
 /// Initialise the logging stack
-pub fn init() {
+pub fn init(env_filter: &str) {
     let subscriber = tracing_subscriber::Registry::default()
+        .with(EnvFilter::from(env_filter))
         .with(fmt::layer())
         .with(ErrorLayer::default());
     if let Err(e) = tracing::subscriber::set_global_default(subscriber) {

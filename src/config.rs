@@ -6,20 +6,27 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
-    pub network: NetworkConfig,
     pub limits: LimitsConfig,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct NetworkConfig {
-    pub bind_address: SocketAddr,
+    pub logging: LoggingConfig,
+    pub network: NetworkConfig,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct LimitsConfig {
     pub max_in_flight_msgs: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct LoggingConfig {
+    pub filter: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct NetworkConfig {
+    pub bind_address: SocketAddr,
 }
 
 impl Config {
