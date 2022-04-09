@@ -12,3 +12,5 @@ lto = "thin"
 [dependencies]
 eyre = "0.6.8"
 tokio = { version = "1.17.0", features = ["full"] }
+tracing = "0.1.32"
+tracing-subscriber = "0.3.10"

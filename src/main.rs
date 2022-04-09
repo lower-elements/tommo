@@ -7,15 +7,19 @@ const BIND_ADDR: &str = "0.0.0.0:7878";
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
+    tracing_subscriber::fmt::init();
+
     let listener = TcpListener::bind(BIND_ADDR).await.wrap_err_with(|| format!("Could not bind to address: {}", BIND_ADDR))?;
+    tracing::info!(addr = BIND_ADDR, "Now listening");
     loop {
-        let (mut conn, addr) = listener.accept().await.wrap_err("Could not accept connection")?;
+        let (conn, addr) = listener.accept().await.wrap_err("Could not accept connection")?;
         tokio::spawn(handle_connection(conn, addr));
     }
 }
 
+#[tracing::instrument(name = "connection", skip(conn))]
 async fn handle_connection(mut conn: TcpStream, addr: SocketAddr) {
-    eprintln!("{} has connected", addr);
+    tracing::info!( "Client connected");
     conn.write_all(b"Hello, world!\n").await.unwrap();
     conn.flush().await.unwrap();
 }
