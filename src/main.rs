@@ -13,13 +13,25 @@ async fn main() -> eyre::Result<()> {
 
     let state = State::new();
 
-    let listener = TcpListener::bind(BIND_ADDR).await.wrap_err_with(|| format!("Could not bind to address: {}", BIND_ADDR))?;
+    let listener = TcpListener::bind(BIND_ADDR)
+        .await
+        .wrap_err_with(|| format!("Could not bind to address: {}", BIND_ADDR))?;
     tracing::info!(addr = BIND_ADDR, "Now listening");
     loop {
-        match listener.accept().await.wrap_err("Could not accept connection") {
+        match listener
+            .accept()
+            .await
+            .wrap_err("Could not accept connection")
+        {
             Ok((conn, addr)) => {
-                tokio::spawn(state.new_connection(conn, addr));
-            },
+                // Create a new client-handler
+                let handler = state.new_connection(conn, addr);
+                tokio::spawn(async move {
+                    if let Err(e) = handler.await {
+                        tracing::warn!(error = ?e, addr = %addr, "Client error");
+                    }
+                });
+            }
             Err(e) => tracing::error!(error = ?e, "Failed to accept connection"),
         }
     }
