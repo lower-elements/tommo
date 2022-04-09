@@ -1,4 +1,4 @@
-use std::{future::Future, net::SocketAddr};
+use std::{future::Future, net::SocketAddr, path::Path};
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -19,8 +19,8 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new() -> eyre::Result<Self> {
-        let config = Config::from_file("config.toml").await?;
+    pub async fn new(config_path: &Path) -> eyre::Result<Self> {
+        let config = Config::from_file(config_path).await?;
         let (global_tx, global_rx) = broadcast::channel(config.limits.max_in_flight_msgs);
         Ok(Self {
             config,

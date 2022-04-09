@@ -1,3 +1,4 @@
+mod args;
 mod config;
 mod logging;
 mod state;
@@ -6,17 +7,17 @@ use state::State;
 use eyre::WrapErr;
 use tokio::net::TcpListener;
 
-const BIND_ADDR: &str = "0.0.0.0:7878";
-
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    let state = State::new().await?;
+    let args = args::parse();
+    let state = State::new(&args.config).await?;
     logging::init(&state.config().logging.filter);
 
-    let listener = TcpListener::bind(state.config().network.bind_address)
+    let bind_addr = state.config().network.bind_address;
+    let listener = TcpListener::bind(bind_addr)
         .await
-        .wrap_err_with(|| format!("Could not bind to address: {}", BIND_ADDR))?;
-    tracing::info!(addr = BIND_ADDR, "Now listening");
+        .wrap_err_with(|| format!("Could not bind to address: {}", bind_addr))?;
+    tracing::info!(addr = %bind_addr, "Now listening");
     loop {
         match listener
             .accept()
