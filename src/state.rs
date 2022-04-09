@@ -1,6 +1,6 @@
 use std::{future::Future, net::SocketAddr};
 
-use tokio::{io::AsyncWriteExt, net::TcpStream, sync::broadcast::{self, error::RecvError}};
+use tokio::{io::{AsyncBufReadExt, AsyncWriteExt, BufReader}, net::TcpStream, sync::broadcast::{self, error::RecvError}};
 
 const MAX_IN_FLIGHT_MSGS: usize = 1024;
 
@@ -19,17 +19,34 @@ impl State {
     }
 
 #[tracing::instrument(name = "connection", skip(self, conn))]
-    pub fn new_connection(&self, mut conn: TcpStream, addr: SocketAddr) -> impl Future<Output = ()> {
+    pub fn new_connection(&self, conn: TcpStream, addr: SocketAddr) -> impl Future<Output = ()> {
+        let (reader, mut writer) = conn.into_split();
         let global_tx = self.global_tx.clone();
         let mut global_rx = global_tx.subscribe();
 
         async move {
     tracing::info!( "Client connected");
+    // Handle sent messages
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(reader);
+        let mut line = String::new();
+        loop {
+            match reader.read_line(&mut line).await {
+                Ok(n) if n == 0 => break,
+                Ok(_) => {
+                    global_tx.send(line.clone()).ok();
+                },
+                Err(e) => tracing::warn!(error = ?e, "Could not read line from client"),
+            }
+        line.clear();
+        }
+    });
+    // Handle received messages
     loop {
         match global_rx.recv().await {
             Ok(msg) => {
-                conn.write_all(msg.as_bytes()).await.unwrap();
-                conn.flush().await.unwrap();
+                writer.write_all(msg.as_bytes()).await.unwrap();
+                writer.flush().await.unwrap();
             },
             Err(e) => {
                 match e {
