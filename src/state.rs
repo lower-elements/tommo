@@ -2,7 +2,10 @@ use std::{future::Future, net::SocketAddr};
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::{tcp::{OwnedReadHalf, OwnedWriteHalf}, TcpStream},
+    net::{
+        tcp::{OwnedReadHalf, OwnedWriteHalf},
+        TcpStream,
+    },
     sync::broadcast::{self, error::RecvError},
 };
 
@@ -39,7 +42,7 @@ impl State {
 
             // Handle received messages
             let send_handler = tokio::spawn(handle_send(writer, global_rx));
-            
+
             // Handle sent messages
             let res = handle_recv(reader, global_tx).await;
             // If we reach this point, the connection id dead
@@ -54,21 +57,20 @@ async fn handle_send(
     mut writer: OwnedWriteHalf,
     mut global_rx: broadcast::Receiver<String>,
 ) -> eyre::Result<()> {
-            loop {
-                match global_rx.recv().await {
-                    Ok(msg) => {
-                        writer.write_all(msg.as_bytes()).await?;
-                        writer.flush().await?;
-                    }
-                    Err(e) => match e {
-                        RecvError::Closed => break,
-                        RecvError::Lagged(by) => {
-                            tracing::warn!(lagged_by = by, "Too many messages recieved")
-                        }
-                    },
-                }
+    loop {
+        match global_rx.recv().await {
+            Ok(msg) => {
+                writer.write_all(msg.as_bytes()).await?;
+                writer.flush().await?;
             }
-            Ok(())
+            Err(e) => match e {
+                RecvError::Closed => return Ok(()), // Server shutting down
+                RecvError::Lagged(by) => {
+                    tracing::warn!(lagged_by = by, "Too many messages recieved")
+                }
+            },
+        }
+    }
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
@@ -80,7 +82,7 @@ async fn handle_recv(
     let mut line = String::new();
     loop {
         match reader.read_line(&mut line).await {
-            Ok(n) if n == 0 => break, // EOF
+            Ok(n) if n == 0 => return Ok(()), // EOF
             Ok(_) => {
                 global_tx.send(line.clone()).ok();
             }
@@ -91,5 +93,4 @@ async fn handle_recv(
         }
         line.clear();
     }
-    Ok(())
 }
