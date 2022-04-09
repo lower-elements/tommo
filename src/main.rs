@@ -1,3 +1,5 @@
+mod logging;
+
 use std::net::SocketAddr;
 
 use eyre::WrapErr;
@@ -7,7 +9,7 @@ const BIND_ADDR: &str = "0.0.0.0:7878";
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    tracing_subscriber::fmt::init();
+    logging::init();
 
     let listener = TcpListener::bind(BIND_ADDR).await.wrap_err_with(|| format!("Could not bind to address: {}", BIND_ADDR))?;
     tracing::info!(addr = BIND_ADDR, "Now listening");
