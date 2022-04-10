@@ -1,3 +1,7 @@
+//! Global server configuration
+//!
+//! These types are [deserialized][serde::Deserialize] from a [`toml`] configuration file.
+
 use std::{net::SocketAddr, path::Path};
 
 use eyre::WrapErr;
@@ -14,6 +18,7 @@ pub struct Config {
 }
 
 impl Config {
+    /// Parse tohe config from a [`toml`] file.
     pub async fn from_file(path: impl AsRef<Path>) -> eyre::Result<Self> {
         let path = path.as_ref();
         let contents = tokio::fs::read_to_string(path)
@@ -34,7 +39,7 @@ pub struct LimitsConfig {
 impl Default for LimitsConfig {
     fn default() -> Self {
         Self {
-            max_in_flight_msgs: 1024
+            max_in_flight_msgs: 1024,
         }
     }
 }

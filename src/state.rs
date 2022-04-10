@@ -11,29 +11,35 @@ use tokio::{
 
 use crate::config::Config;
 
+/// Global server state, responsible for creating new connection handlers, managing database
+/// connections, and storing config values, among other things.
+#[derive(Debug)]
 pub struct State {
+    /// Server configuration. Private to make sure all accesses from outside that `State` are
+    /// immutable.
     config: Config,
-    global_tx: broadcast::Sender<String>,
-    #[allow(dead_code)]
-    global_rx: broadcast::Receiver<String>,
+    /// The sending end of a channel that broadcasts to all clients. Public to allow for sending serverwide messages.
+    pub global_tx: broadcast::Sender<String>,
 }
 
 impl State {
+    /// Create a new state with the parameters specified in the config file at `config_path`.
     pub async fn new(config_path: &Path) -> eyre::Result<Self> {
         let config = Config::from_file(config_path).await?;
-        let (global_tx, global_rx) = broadcast::channel(config.limits.max_in_flight_msgs);
-        Ok(Self {
-            config,
-            global_tx,
-            global_rx,
-        })
+        let (global_tx, _rx) = broadcast::channel(config.limits.max_in_flight_msgs);
+        Ok(Self { config, global_tx })
     }
 
+    /// Get a reference to the [server configuration][crate::config::Config].
     #[inline]
     pub fn config(&self) -> &Config {
         &self.config
     }
 
+    /// Create a connection handler for a newly accepted connection.
+    ///
+    /// A connection handler is a [`Future`] that asynchronously handles the client's I/O, command
+    /// processing, etc. It returns when the client has disconnected.
     #[tracing::instrument(name = "connection", skip(self, conn))]
     pub fn new_connection(
         &self,
@@ -45,6 +51,7 @@ impl State {
         let global_tx = self.global_tx.clone();
         let global_rx = global_tx.subscribe();
 
+        // This is the connection handler Future
         async move {
             tracing::info!("Client connected");
 
@@ -53,13 +60,14 @@ impl State {
 
             // Handle sent messages
             let res = handle_recv(reader, global_tx).await;
-            // If we reach this point, the connection id dead
+            // If we reach this point, the connection is dead
             send_handler.abort();
             res
         }
     }
 }
 
+/// Send messages to the client when they're received over the broadcast channel.
 #[tracing::instrument(level = "debug", skip_all)]
 async fn handle_send(
     mut writer: OwnedWriteHalf,
@@ -81,6 +89,7 @@ async fn handle_send(
     }
 }
 
+/// Send messages down the channel when they're received from the client.
 #[tracing::instrument(level = "debug", skip_all)]
 async fn handle_recv(
     reader: OwnedReadHalf,
@@ -90,8 +99,10 @@ async fn handle_recv(
     let mut line = String::new();
     loop {
         match reader.read_line(&mut line).await {
-            Ok(n) if n == 0 => return Ok(()), // EOF
+            Ok(n) if n == 0 => return Ok(()), // Client disconnected
             Ok(_) => {
+                // Message received
+                // The only possible error is when there are no receivers, which we can ignore
                 global_tx.send(line.clone()).ok();
             }
             Err(e) => {

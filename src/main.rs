@@ -30,7 +30,7 @@ async fn main() -> eyre::Result<()> {
                 tokio::spawn(async move {
                     match handler.await {
                         Ok(_) => tracing::info!(%addr, "Client disconnected"),
-                        Err(e) => tracing::warn!(error = ?e, addr = %addr, "Client error"),
+                        Err(e) => tracing::warn!(error = ?e, %addr, "Client error"),
                     }
                 });
             }
