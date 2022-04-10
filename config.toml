@@ -6,3 +6,7 @@ max-in-flight-msgs = 1024
 
 [logging]
 filter = "info"
+
+[database]
+host = "localhost"
+dbname = "tommo"

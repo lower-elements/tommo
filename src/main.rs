@@ -11,7 +11,6 @@ use tokio::net::TcpListener;
 async fn main() -> eyre::Result<()> {
     let args = args::parse();
     let state = State::new(&args.config).await?;
-    logging::init(&state.config().logging.filter);
 
     let bind_addr = state.config().network.bind_address;
     let listener = TcpListener::bind(bind_addr)

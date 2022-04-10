@@ -1,5 +1,7 @@
 use std::{future::Future, net::SocketAddr, path::Path};
 
+use eyre::WrapErr;
+use deadpool_postgres::{tokio_postgres::NoTls, Runtime};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{
@@ -13,11 +15,12 @@ use crate::config::Config;
 
 /// Global server state, responsible for creating new connection handlers, managing database
 /// connections, and storing config values, among other things.
-#[derive(Debug)]
 pub struct State {
     /// Server configuration. Private to make sure all accesses from outside that `State` are
     /// immutable.
     config: Config,
+    /// A pool of database connections.
+    db_pool: deadpool_postgres::Pool,
     /// The sending end of a channel that broadcasts to all clients. Public to allow for sending serverwide messages.
     pub global_tx: broadcast::Sender<String>,
 }
@@ -26,8 +29,16 @@ impl State {
     /// Create a new state with the parameters specified in the config file at `config_path`.
     pub async fn new(config_path: &Path) -> eyre::Result<Self> {
         let config = Config::from_file(config_path).await?;
-        let (global_tx, _rx) = broadcast::channel(config.limits.max_in_flight_msgs);
-        Ok(Self { config, global_tx })
+        // Initialize logging
+        crate::logging::init(&config.logging.filter);
+
+let db_pool = config.database.create_pool(Some(Runtime::Tokio1), NoTls).wrap_err("Failed to connect to database")?;
+// Ensure we can actually connect
+let _ = db_pool.get().await.wrap_err("Failed to connect to database")?;
+tracing::info!("Connected to database");
+
+        let (global_tx, _) = broadcast::channel(config.limits.max_in_flight_msgs);
+        Ok(Self { config, db_pool, global_tx })
     }
 
     /// Get a reference to the [server configuration][crate::config::Config].
