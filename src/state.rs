@@ -26,12 +26,8 @@ pub struct State {
 }
 
 impl State {
-    /// Create a new state with the parameters specified in the config file at `config_path`.
-    pub async fn new(config_path: &Path) -> eyre::Result<Self> {
-        let config = Config::from_file(config_path).await?;
-        // Initialize logging
-        crate::logging::init(&config.logging.filter);
-
+    /// Create a new state from the specified [`Config`].
+    pub async fn new(config: Config) -> eyre::Result<Self> {
 let db_pool = config.database.create_pool(Some(Runtime::Tokio1), NoTls).wrap_err("Failed to connect to database")?;
 // Ensure we can actually connect
 let _ = db_pool.get().await.wrap_err("Failed to connect to database")?;
