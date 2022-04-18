@@ -1044,6 +1044,7 @@ dependencies = [
  "color-eyre",
  "deadpool-postgres",
  "eyre",
+ "futures",
  "serde",
  "tokio",
  "toml",
