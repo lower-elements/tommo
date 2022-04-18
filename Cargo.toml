@@ -3,7 +3,7 @@ name = "tommo"
 version = "0.1.0"
 authors = ["Michael Connor Buchan <mikey@blindcomputing.org>"]
 description = "Text-Only, Massively Multiplayer Online engine"
-license = "gpl-3" # Not gpl-3-or-later
+license = "agpl-3" # Not gpl-3-or-later
 edition = "2021"
 
 [profile.release]
