@@ -98,9 +98,9 @@ pub fn listen(&self, state: Arc<State>) -> JoinHandle<eyre::Result<()>> {
         {
             Ok((conn, addr)) => {
                 // Create a new client-handler
-                let handler = state.new_connection(conn, addr);
+                let handler = state.new_connection(conn);
                 tokio::spawn(async move {
-                    match handler.await {
+                    match handler.handle().await {
                         Ok(_) => tracing::info!(%addr, "Client disconnected"),
                         Err(e) => tracing::warn!(error = ?e, %addr, "Client error"),
                     }

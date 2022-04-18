@@ -1,5 +1,6 @@
 mod args;
 mod config;
+mod connection;
 use config::Config;
 mod logging;
 mod state;
