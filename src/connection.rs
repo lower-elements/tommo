@@ -27,6 +27,9 @@ impl Connection {
     }
 
     pub async fn handle(self: Arc<Self>) -> eyre::Result<()> {
+        // Fail gracefully if we can't retrieve the peer address
+        // On Linux at least, having read getpeername(2), I'm pretty sure any error we could
+        // possibly receive here is fatal, but this may not be the case on other platforms.
         let span = match self.rx.lock().await.get_ref().peer_addr() {
         Ok(addr) => tracing::info_span!("connection", %addr),
         Err(e) => tracing::info_span!("connection", addr = %"unknown", error = ?e),
@@ -48,7 +51,9 @@ impl Connection {
 /// Send messages to the client when they're received over the broadcast channel.
 #[tracing::instrument(level = "debug", skip_all)]
 async fn handle_send(self: Arc<Self>) -> eyre::Result<()> {
+    // We're the only code using this, so we can lock it indefinitely
     let mut global_rx = self.global_rx.lock().await;
+
     loop {
         match global_rx.recv().await {
             Ok(msg) => {
@@ -69,14 +74,16 @@ async fn handle_send(self: Arc<Self>) -> eyre::Result<()> {
 /// Send messages down the channel when they're received from the client.
 #[tracing::instrument(level = "debug", skip_all)]
 async fn handle_recv(self: Arc<Self>) -> eyre::Result<()> {
+    // We're the only code using this, so we can lock it indefinitely
     let global_tx = self.global_tx.lock().await;
     let mut line = String::new();
+
     loop {
         match self.rx.lock().await.read_line(&mut line).await {
             Ok(n) if n == 0 => return Ok(()), // Client disconnected
             Ok(_) => {
                 // Message received
-                // The only possible error is when there are no receivers, which we can ignore
+                // The only possible error is no receivers, which we can ignore
                 global_tx.send(line.clone()).ok();
             }
             Err(e) => {
@@ -84,6 +91,7 @@ async fn handle_recv(self: Arc<Self>) -> eyre::Result<()> {
                 return Err(e.into());
             }
         }
+
         line.clear();
     }
 }
