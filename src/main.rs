@@ -5,6 +5,7 @@ use config::Config;
 mod logging;
 mod state;
 use state::State;
+mod util;
 
 use std::sync::Arc;
 

@@ -6,23 +6,18 @@ use tokio::{
     sync::{broadcast::{self, error::RecvError}, Mutex},
 };
 
+use crate::util::{BufReadWrite, BroadcastReadWrite};
+
 pub struct Connection {
-    rx: Mutex<BufReader<OwnedReadHalf>>,
-    tx: Mutex<BufWriter<OwnedWriteHalf>>,
-    global_tx: Mutex<broadcast::Sender<String>>,
-    global_rx: Mutex<broadcast::Receiver<String>>,
+    conn: BufReadWrite<OwnedReadHalf, OwnedWriteHalf>,
+    bcast: BroadcastReadWrite<String>,
 }
 
 impl Connection {
     pub fn new(socket: TcpStream, global_tx: broadcast::Sender<String>) -> Arc<Self> {
-        let (rx, tx) = socket.into_split();
-        let rx = Mutex::new(BufReader::new(rx));
-        let tx = Mutex::new(BufWriter::new(tx));
-        let global_rx = Mutex::new(global_tx.subscribe());
         Arc::new(Self {
-            tx, rx,
-            global_tx: Mutex::new(global_tx),
-            global_rx,
+            conn: BufReadWrite::buffered(socket),
+            bcast: BroadcastReadWrite::from(global_tx),
         })
     }
 
@@ -30,7 +25,7 @@ impl Connection {
         // Fail gracefully if we can't retrieve the peer address
         // On Linux at least, having read getpeername(2), I'm pretty sure any error we could
         // possibly receive here is fatal, but this may not be the case on other platforms.
-        let span = match self.rx.lock().await.get_ref().peer_addr() {
+        let span = match self.conn.read().await.get_ref().peer_addr() {
         Ok(addr) => tracing::info_span!("connection", %addr),
         Err(e) => tracing::info_span!("connection", addr = %"unknown", error = ?e),
         };
@@ -52,12 +47,12 @@ impl Connection {
 #[tracing::instrument(level = "debug", skip_all)]
 async fn handle_send(self: Arc<Self>) -> eyre::Result<()> {
     // We're the only code using this, so we can lock it indefinitely
-    let mut global_rx = self.global_rx.lock().await;
+    let mut global_rx = self.bcast.read().await;
 
     loop {
         match global_rx.recv().await {
             Ok(msg) => {
-                let mut tx = self.tx.lock().await;
+                let mut tx = self.conn.write().await;
                 tx.write_all(msg.as_bytes()).await?;
                 tx.flush().await?;
             }
@@ -75,11 +70,11 @@ async fn handle_send(self: Arc<Self>) -> eyre::Result<()> {
 #[tracing::instrument(level = "debug", skip_all)]
 async fn handle_recv(self: Arc<Self>) -> eyre::Result<()> {
     // We're the only code using this, so we can lock it indefinitely
-    let global_tx = self.global_tx.lock().await;
+    let global_tx = self.bcast.write().await;
     let mut line = String::new();
 
     loop {
-        match self.rx.lock().await.read_line(&mut line).await {
+        match self.conn.read().await.read_line(&mut line).await {
             Ok(n) if n == 0 => return Ok(()), // Client disconnected
             Ok(_) => {
                 // Message received
