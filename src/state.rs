@@ -44,9 +44,9 @@ tracing::info!("Connected to database");
     /// A connection handler is a [`Future`] that asynchronously handles the client's I/O, command
     /// processing, etc. It returns when the client has disconnected.
     pub fn new_connection(
-        &self,
+        self: &Arc<Self>,
         socket: TcpStream,
     ) -> Arc<Connection> {
-        Connection::new(socket, self.global_tx.clone())
+        Connection::new(socket, self.clone())
     }
 }

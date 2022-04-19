@@ -1,3 +1,8 @@
+motd = """
+Welcome to my MUD server
+Have a great time here!
+"""
+
 [[listener]]
 bind = "0.0.0.0:7878"
 

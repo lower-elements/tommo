@@ -1,21 +1,28 @@
 use std::sync::Arc;
 
+use eyre::WrapErr;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
+    io::{AsyncBufReadExt, AsyncWriteExt},
     net::{tcp::{OwnedReadHalf, OwnedWriteHalf}, TcpStream},
-    sync::{broadcast::{self, error::RecvError}, Mutex},
+    sync::broadcast::error::RecvError,
 };
 
-use crate::util::{BufReadWrite, BroadcastReadWrite};
+use crate::{
+    state::State,
+    util::{BufReadWrite, BroadcastReadWrite}
+};
 
 pub struct Connection {
+    state: Arc<State>,
     conn: BufReadWrite<OwnedReadHalf, OwnedWriteHalf>,
     bcast: BroadcastReadWrite<String>,
 }
 
 impl Connection {
-    pub fn new(socket: TcpStream, global_tx: broadcast::Sender<String>) -> Arc<Self> {
+    pub fn new(socket: TcpStream, state: Arc<State>) -> Arc<Self> {
+        let global_tx = state.global_tx.clone();
         Arc::new(Self {
+            state,
             conn: BufReadWrite::buffered(socket),
             bcast: BroadcastReadWrite::from(global_tx),
         })
@@ -31,6 +38,18 @@ impl Connection {
         };
         let _guard = span.enter();
             tracing::info!("Client connected");
+
+            // Write the MOTD
+            if let Some(motd) = &self.state.config().motd {
+                self.conn.with_tx(|mut tx| async move {
+                    tx.write_all(motd.as_bytes()).await?;
+                    if !motd.ends_with('\n') {
+                        tx.write_all(b"\r\n").await?;
+                    }
+                    tx.flush().await?;
+                    Ok::<_, std::io::Error>(())
+                }).await.wrap_err("Error writing MOTD")?;
+            }
 
             // Handle received messages
             let send_self = self.clone();

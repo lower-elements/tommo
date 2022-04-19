@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use tokio::{
     io::{BufReader, BufStream, BufWriter},
     net::{
@@ -31,6 +33,22 @@ impl<R, W> ReadWrite<R, W> {
     pub async fn write(&self) -> MutexGuard<'_, W> {
         self.tx.lock().await
     }
+
+    pub async fn with_rx<'a, F, Fut, Res>(&'a self, f: F) -> Res
+        where
+        F: FnOnce(MutexGuard<'a, R>) -> Fut,
+        Fut: Future<Output = Res> + 'a {
+            let guard = self.read().await;
+            f(guard).await
+        }
+
+    pub async fn with_tx<'a, F, Fut, Res>(&'a self, f: F) -> Res
+        where
+        F: FnOnce(MutexGuard<'a, W>) -> Fut,
+        Fut: Future<Output = Res> + 'a {
+            let guard = self.write().await;
+            f(guard).await
+        }
 }
 
 impl<T: Clone> ReadWrite<broadcast::Receiver<T>, broadcast::Sender<T>> {

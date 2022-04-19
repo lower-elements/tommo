@@ -14,6 +14,8 @@ use crate::state::State;
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     #[serde(default)]
+    pub motd: Option<String>,
+    #[serde(default)]
     pub database: deadpool_postgres::Config,
     #[serde(default)]
     pub limits: LimitsConfig,
