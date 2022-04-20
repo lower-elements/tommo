@@ -34,6 +34,7 @@ impl<R, W> ReadWrite<R, W> {
         self.tx.lock().await
     }
 
+    #[allow(dead_code)]
     pub async fn with_rx<'a, F, Fut, Res>(&'a self, f: F) -> Res
     where
         F: FnOnce(MutexGuard<'a, R>) -> Fut,
@@ -54,6 +55,7 @@ impl<R, W> ReadWrite<R, W> {
 }
 
 impl<T: Clone> ReadWrite<broadcast::Receiver<T>, broadcast::Sender<T>> {
+    #[allow(dead_code)]
     fn channel(queue_size: usize) -> Self {
         let (tx, rx) = broadcast::channel(queue_size);
         Self::new(rx, tx)

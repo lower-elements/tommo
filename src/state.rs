@@ -13,6 +13,7 @@ pub struct State {
     /// immutable.
     config: Config,
     /// A pool of database connections.
+    #[allow(dead_code)]
     db_pool: deadpool_postgres::Pool,
     /// The sending end of a channel that broadcasts to all clients. Public to allow for sending serverwide messages.
     pub global_tx: broadcast::Sender<String>,
