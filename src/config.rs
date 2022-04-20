@@ -47,6 +47,7 @@ impl Config {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LimitsConfig {
+    #[serde(default = "LimitsConfig::default_max_in_flight_msgs")]
     pub max_in_flight_msgs: usize,
 }
 
@@ -58,9 +59,16 @@ impl Default for LimitsConfig {
     }
 }
 
+impl LimitsConfig {
+    fn default_max_in_flight_msgs() -> usize {
+            Self::default().max_in_flight_msgs
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoggingConfig {
+    #[serde(default = "LoggingConfig::default_filter")]
     pub filter: String,
 }
 
@@ -69,6 +77,12 @@ impl Default for LoggingConfig {
         Self {
             filter: String::from("info"),
         }
+    }
+}
+
+impl LoggingConfig {
+    fn default_filter() -> String {
+        Self::default().filter
     }
 }
 
