@@ -27,12 +27,11 @@ pub struct Config {
 
 impl Config {
     /// Parse a `Config` from a Lua file
-    pub async fn from_lua(path: impl AsRef<Path>) -> eyre::Result<Self> {
+    pub async fn from_lua(path: impl AsRef<Path>, lua: &Lua) -> eyre::Result<Self> {
         let path = path.as_ref();
         let contents = tokio::fs::read(path)
             .await
             .wrap_err_with(|| format!("Could not read config file at {}", path.display()))?;
-        let lua = Lua::new();
         lua.load(&contents)
             .exec_async()
             .await

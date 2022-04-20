@@ -14,7 +14,8 @@ use futures::stream::{self, StreamExt};
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let args = args::parse();
-    let config = Config::from_lua(&args.config).await?;
+    let lua = mlua::Lua::new();
+    let config = Config::from_lua(&args.config, &lua).await?;
 
     // Initialize logging
     logging::init(&config.logging.filter);
