@@ -14,7 +14,7 @@ use futures::stream::{self, StreamExt};
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let args = args::parse();
-        let config = Config::from_file(&args.config).await?;
+        let config = Config::from_lua(&args.config).await?;
         
         // Initialize logging
         logging::init(&config.logging.filter);
@@ -23,7 +23,7 @@ async fn main() -> eyre::Result<()> {
     let state = Arc::new(State::new(config).await?);
 
     let listeners = state.config().listeners(&state);
-    let len = state.config().listener.len();
+    let len = state.config().listeners.len();
     let mut stream = stream::iter(listeners).buffer_unordered(len);
     while let Some(res) = stream.next().await {
         res??; // Proppogate errors

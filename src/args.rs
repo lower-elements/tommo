@@ -6,8 +6,8 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[clap(about, version)]
 pub struct Args {
-    /// Path to the configuration file in toml format
-    #[clap(short, long, default_value = "config.toml")]
+    /// Path to the configuration Lua script
+    #[clap(short, long, default_value = "config.lua")]
     pub config: PathBuf,
 }
 

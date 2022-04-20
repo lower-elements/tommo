@@ -5,13 +5,14 @@
 use std::{net::SocketAddr, sync::Arc, path::Path};
 
 use eyre::WrapErr;
+use mlua::prelude::*;
 use serde::Deserialize;
 use tokio::{net::TcpListener, task::JoinHandle};
 
 use crate::state::State;
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Config {
     #[serde(default)]
     pub motd: Option<String>,
@@ -21,28 +22,30 @@ pub struct Config {
     pub limits: LimitsConfig,
     #[serde(default)]
     pub logging: LoggingConfig,
-    pub listener: Vec<ListenerConfig>,
+    pub listeners: Vec<ListenerConfig>,
 }
 
 impl Config {
-    /// Parse tohe config from a [`toml`] file.
-    pub async fn from_file(path: impl AsRef<Path>) -> eyre::Result<Self> {
+    /// Parse a `Config` from a Lua file
+    pub async fn from_lua(path: impl AsRef<Path>) -> eyre::Result<Self> {
         let path = path.as_ref();
-        let contents = tokio::fs::read_to_string(path)
+        let contents = tokio::fs::read(path)
             .await
             .wrap_err_with(|| format!("Could not read config file at {}", path.display()))?;
-        let cfg = toml::from_str(&contents)
-            .wrap_err_with(|| format!("Could not parse config file at {}", path.display()))?;
+        let lua = Lua::new();
+        lua.load(&contents).exec_async().await.wrap_err_with(|| format!("Failed to run config file {}", path.display()))?;
+        let val: LuaValue = lua.globals().get("config").wrap_err("Config does not contain a global `config' table")?;
+        let cfg = lua.from_value(val).wrap_err("Invalid configuration")?;
         Ok(cfg)
     }
 
     pub fn listeners<'a>(&'a self, state: &'a Arc<State>) -> impl Iterator<Item = JoinHandle<eyre::Result<()>>> + 'a {
-        self.listener.iter().map(|l| l.listen(Arc::clone(state)))
+        self.listeners.iter().map(|l| l.listen(Arc::clone(state)))
     }
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LimitsConfig {
     pub max_in_flight_msgs: usize,
 }
@@ -56,7 +59,7 @@ impl Default for LimitsConfig {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LoggingConfig {
     pub filter: String,
 }
@@ -70,7 +73,7 @@ impl Default for LoggingConfig {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct ListenerConfig {
     #[serde(default = "ListenerConfig::default_name")]
     pub name: String,

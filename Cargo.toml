@@ -15,9 +15,9 @@ color-eyre = "0.6.1"
 deadpool-postgres = { version = "0.10.2", features = ["serde"] }
 eyre = "0.6.8"
 futures = "0.3.21"
+mlua = { version = "0.7.4", features = ["async", "lua54", "send", "serialize"] }
 serde = { version = "1.0.136", features = ["derive"] }
 tokio = { version = "1.17.0", features = ["full", "parking_lot"] }
-toml = "0.5.8"
 tracing = "0.1.32"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.10", features = ["env-filter"] }
