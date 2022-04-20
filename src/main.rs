@@ -23,7 +23,7 @@ async fn main() -> eyre::Result<()> {
     let state = Arc::new(State::new(config).await?);
 
     let listeners = state.config().listeners(&state);
-    let len = state.config().listeners.len();
+    let len = listeners.len();
     let mut stream = stream::iter(listeners).buffer_unordered(len);
     while let Some(res) = stream.next().await {
         res??; // Proppogate errors

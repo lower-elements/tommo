@@ -48,7 +48,7 @@ impl Config {
     pub fn listeners<'a>(
         &'a self,
         state: &'a Arc<State>,
-    ) -> impl Iterator<Item = JoinHandle<eyre::Result<()>>> + 'a {
+    ) -> impl ExactSizeIterator<Item = JoinHandle<eyre::Result<()>>> + 'a {
         self.listeners.iter().map(|l| l.listen(Arc::clone(state)))
     }
 }
