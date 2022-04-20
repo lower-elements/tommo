@@ -14,7 +14,7 @@ config = {
 
     logging = {
         filter = "info",
-},
+    },
 
     database = {
         host = "localhost",

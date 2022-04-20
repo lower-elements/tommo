@@ -2,7 +2,7 @@
 //!
 //! These types are [deserialized][serde::Deserialize] from a [`toml`] configuration file.
 
-use std::{net::SocketAddr, sync::Arc, path::Path};
+use std::{net::SocketAddr, path::Path, sync::Arc};
 
 use eyre::WrapErr;
 use mlua::prelude::*;
@@ -33,13 +33,22 @@ impl Config {
             .await
             .wrap_err_with(|| format!("Could not read config file at {}", path.display()))?;
         let lua = Lua::new();
-        lua.load(&contents).exec_async().await.wrap_err_with(|| format!("Failed to run config file {}", path.display()))?;
-        let val: LuaValue = lua.globals().get("config").wrap_err("Config does not contain a global `config' table")?;
+        lua.load(&contents)
+            .exec_async()
+            .await
+            .wrap_err_with(|| format!("Failed to run config file {}", path.display()))?;
+        let val: LuaValue = lua
+            .globals()
+            .get("config")
+            .wrap_err("Config does not contain a global `config' table")?;
         let cfg = lua.from_value(val).wrap_err("Invalid configuration")?;
         Ok(cfg)
     }
 
-    pub fn listeners<'a>(&'a self, state: &'a Arc<State>) -> impl Iterator<Item = JoinHandle<eyre::Result<()>>> + 'a {
+    pub fn listeners<'a>(
+        &'a self,
+        state: &'a Arc<State>,
+    ) -> impl Iterator<Item = JoinHandle<eyre::Result<()>>> + 'a {
         self.listeners.iter().map(|l| l.listen(Arc::clone(state)))
     }
 }
@@ -61,7 +70,7 @@ impl Default for LimitsConfig {
 
 impl LimitsConfig {
     fn default_max_in_flight_msgs() -> usize {
-            Self::default().max_in_flight_msgs
+        Self::default().max_in_flight_msgs
     }
 }
 
@@ -99,35 +108,35 @@ impl ListenerConfig {
         String::from("unnamed")
     }
 
-pub fn listen(&self, state: Arc<State>) -> JoinHandle<eyre::Result<()>> {
-    let bind_addr = self.bind;
-    let name = self.name.clone();
-    tokio::spawn(async move {
-        let span = tracing::info_span!("listener", name = %name, %bind_addr);
-        let _guard = span.enter();
-    let listener = TcpListener::bind(bind_addr)
-        .await
-        .wrap_err_with(|| format!("Could not bind to address: {}", bind_addr))?;
-    tracing::info!("Now listening");
-    loop {
-        match listener
-            .accept()
-            .await
-            .wrap_err("Could not accept connection")
-        {
-            Ok((conn, addr)) => {
-                // Create a new client-handler
-                let handler = state.new_connection(conn);
-                tokio::spawn(async move {
-                    match handler.handle().await {
-                        Ok(_) => tracing::info!(%addr, "Client disconnected"),
-                        Err(e) => tracing::warn!(error = ?e, %addr, "Client error"),
+    pub fn listen(&self, state: Arc<State>) -> JoinHandle<eyre::Result<()>> {
+        let bind_addr = self.bind;
+        let name = self.name.clone();
+        tokio::spawn(async move {
+            let span = tracing::info_span!("listener", name = %name, %bind_addr);
+            let _guard = span.enter();
+            let listener = TcpListener::bind(bind_addr)
+                .await
+                .wrap_err_with(|| format!("Could not bind to address: {}", bind_addr))?;
+            tracing::info!("Now listening");
+            loop {
+                match listener
+                    .accept()
+                    .await
+                    .wrap_err("Could not accept connection")
+                {
+                    Ok((conn, addr)) => {
+                        // Create a new client-handler
+                        let handler = state.new_connection(conn);
+                        tokio::spawn(async move {
+                            match handler.handle().await {
+                                Ok(_) => tracing::info!(%addr, "Client disconnected"),
+                                Err(e) => tracing::warn!(error = ?e, %addr, "Client error"),
+                            }
+                        });
                     }
-                });
+                    Err(e) => tracing::error!(error = ?e, "Failed to accept connection"),
+                }
             }
-            Err(e) => tracing::error!(error = ?e, "Failed to accept connection"),
-        }
+        })
     }
-    })
-}
 }
